@@ -1,0 +1,96 @@
+start
+    perform_import from transformers import GPT2LMHeadModel, GPT2Tokenizer, Trainer, TrainingArguments, TextDataset, DataCollatorForLanguageModeling done
+    perform_import import torch done
+
+    define_class AGIModel done
+        start
+            initialize_method __init__ with model_name='gpt2' done
+                start
+                    tokenizer is GPT2Tokenizer.from_pretrained(model_name) done
+                    model is GPT2LMHeadModel.from_pretrained(model_name) done
+                stop done
+            done done
+
+            understand_code_method with code_parameter done
+                start
+                    inputs is tokenizer(code, return_tensors='pt', padding=True, truncation=True) done
+                    outputs is model(**inputs) done
+                    return outputs done
+                stop done
+
+            generate_code_method with prompt_parameter done
+                start
+                    inputs is tokenizer(prompt, return_tensors='pt') done
+                    outputs is model.generate(**inputs) done
+                    return decode_tokenizer(outputs[0], skip_special_tokens=True) done
+                stop done
+        done done
+
+    load_dataset_function with file_path_parameter, tokenizer_parameter, block_size=128 done
+        start
+            dataset is TextDataset done
+                start
+                    tokenizer is tokenizer done
+                    file_path is file_path done
+                    block_size is block_size done
+                stop done
+            return dataset done
+        stop done
+
+    main_function done
+        start
+            agi is initialize AGIModel done
+            train_dataset is load_dataset('code_dataset.txt', agi.tokenizer) done
+            data_collator is DataCollatorForLanguageModeling done
+                start
+                    tokenizer is agi.tokenizer done
+                    mlm is False done
+                stop done
+
+            training_args is TrainingArguments done
+                start
+                    output_dir is './results' done
+                    overwrite_output_dir is True done
+                    num_train_epochs is 1 done
+                    per_device_train_batch_size is 4 done
+                    save_steps is 10_000 done
+                    save_total_limit is 2 done
+                    logging_dir is './logs' done
+                    logging_steps is 100 done
+                stop done
+
+            trainer is Trainer done
+                start
+                    model is agi.model done
+                    args is training_args done
+                    data_collator is data_collator done
+                    train_dataset is train_dataset done
+                stop done
+
+            train_model using trainer done
+            save_model using trainer with "./trained_model" done
+        stop done
+
+    if main_function done
+        output to WordMaze
+stop done
+
+start
+    i is 5 done
+    e is 2.71 done
+    pi is 3.14 done
+    sum is i + e + pi done
+
+    if sum is inbetween(10, 15) done
+        print "Sum is within range." done
+    stop done
+
+try
+    i is not valid done
+catch error
+    rephrase "Variable i has an invalid value." done
+brute-force
+    i is 0 done
+annihilate
+    delete i done
+stop done
