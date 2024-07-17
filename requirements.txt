@@ -1,0 +1,77 @@
+# WordMaze Requirements
+
+# Web Framework
+Flask==2.0.1                 # Micro web framework
+Flask-Cors==3.1.1            # CORS support for Flask
+
+# Database
+pymongo==3.12.0              # MongoDB driver for Python
+
+# Authentication and Authorization
+Flask-JWT-Extended==4.3.1    # JWT token authentication
+
+# Testing
+pytest==7.5.0                # Testing framework
+pytest-flask==2.1.1          # Flask integration for pytest
+pytest-cov==3.0.0            # Coverage plugin for pytest
+
+# Serialization
+marshmallow==3.14.1          # Object serialization
+
+# Code Analysis
+flake8==4.0.1                # Code linting and style checking
+pylint==2.13.6               # Python code static analysis tool
+
+# Utility Libraries
+numpy==1.22.3                # Scientific computing library
+requests==2.27.1             # HTTP library for making requests
+
+# Development and Deployment
+gunicorn==20.1.0             # WSGI HTTP Server for deployment
+python-dotenv==0.19.2        # .env file management
+
+# Web Framework and CORS Support
+Flask==2.0.1
+Flask-Cors==3.1.1
+
+# Database
+pymongo==3.12.0              # MongoDB driver for Python
+
+# Authentication and Authorization
+Flask-JWT-Extended==4.3.1    # JWT token authentication
+
+# Testing
+pytest==7.5.0
+pytest-flask==2.1.1
+pytest-cov==3.0.0
+
+# Serialization
+marshmallow==3.14.1
+
+# Code Analysis
+flake8==4.0.1
+pylint==2.13.6
+
+# Utility Libraries
+numpy==1.22.3
+requests==2.27.1
+
+# Development and Deployment
+gunicorn==20.1.0
+python-dotenv==0.19.2
+
+Flask==2.0.1
+Flask-Cors==3.1.1
+pymongo==3.12.0
+Flask-JWT-Extended==4.3.1
+pytest==7.5.0
+pytest-flask==2.1.1
+pytest-cov==3.0.0
+marshmallow==3.14.1
+flake8==4.0.1
+pylint==2.13.6
+numpy==1.22.3
+requests==2.27.1
+gunicorn==20.1.0
+python-dotenv==0.19.2
+
