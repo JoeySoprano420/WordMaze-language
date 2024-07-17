@@ -1,4 +1,4 @@
-# WordMAze-language
+# WordMaze-language
 New style of programming
 
 
