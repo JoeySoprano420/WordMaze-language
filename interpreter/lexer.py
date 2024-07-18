@@ -10,7 +10,7 @@ class Lexer:
         self.current_char = self.text[self.pos] if self.pos < len(self.text) else None
 
     def error(self):
-        raise Exception('Invalid character')
+        raise Exception(f'Invalid character: {self.current_char}')
 
     def advance(self):
         self.pos += 1
@@ -29,6 +29,11 @@ class Lexer:
     def skip_whitespace(self):
         while self.current_char is not None and self.current_char.isspace():
             self.advance()
+
+    def skip_comment(self):
+        while self.current_char is not None and self.current_char != '\n':
+            self.advance()
+        self.advance()  # Skip the newline character
 
     def get_number(self):
         num = ''
@@ -50,11 +55,24 @@ class Lexer:
             self.advance()
         return word
 
+    def get_string(self):
+        string = ''
+        self.advance()  # Skip the opening quote
+        while self.current_char is not None and self.current_char != '"':
+            string += self.current_char
+            self.advance()
+        self.advance()  # Skip the closing quote
+        return string
+
     def get_next_token(self):
         while self.current_char is not None:
 
             if self.current_char.isspace():
                 self.skip_whitespace()
+                continue
+
+            if self.current_char == '#':
+                self.skip_comment()
                 continue
 
             if self.current_char.isdigit():
@@ -65,6 +83,9 @@ class Lexer:
                 if word in ['let', 'if', 'else', 'while', 'for', 'try', 'catch', 'function', 'return', 'print']:
                     return Token(word.upper(), word)
                 return Token('WORD', word)
+
+            if self.current_char == '"':
+                return Token('STRING', self.get_string())
 
             if self.current_char == '+':
                 self.advance()
@@ -80,7 +101,14 @@ class Lexer:
 
             if self.current_char == '/':
                 self.advance()
+                if self.current_char == '/':
+                    self.skip_comment()
+                    continue
                 return Token('DIVIDE', '/')
+
+            if self.current_char == '%':
+                self.advance()
+                return Token('MODULO', '%')
 
             if self.current_char == '(':
                 self.advance()
@@ -90,21 +118,6 @@ class Lexer:
                 self.advance()
                 return Token('RPAREN', ')')
 
-            if self.current_char == '=':
-                self.advance()
-                if self.current_char == '=':
-                    self.advance()
-                    return Token('EQUALS_EQUALS', '==')
-                return Token('EQUALS', '=')
-
-            if self.current_char == ',':
-                self.advance()
-                return Token('COMMA', ',')
-
-            if self.current_char == ':':
-                self.advance()
-                return Token('COLON', ':')
-
             if self.current_char == '{':
                 self.advance()
                 return Token('LCURLY', '{')
@@ -112,6 +125,52 @@ class Lexer:
             if self.current_char == '}':
                 self.advance()
                 return Token('RCURLY', '}')
+
+            if self.current_char == '=':
+                self.advance()
+                if self.current_char == '=':
+                    self.advance()
+                    return Token('EQUALS_EQUALS', '==')
+                return Token('EQUALS', '=')
+
+            if self.current_char == '!':
+                self.advance()
+                if self.current_char == '=':
+                    self.advance()
+                    return Token('NOT_EQUALS', '!=')
+                return Token('NOT', '!')
+
+            if self.current_char == '<':
+                self.advance()
+                if self.current_char == '=':
+                    self.advance()
+                    return Token('LESS_THAN_EQUALS', '<=')
+                return Token('LESS_THAN', '<')
+
+            if self.current_char == '>':
+                self.advance()
+                if self.current_char == '=':
+                    self.advance()
+                    return Token('GREATER_THAN_EQUALS', '>=')
+                return Token('GREATER_THAN', '>')
+
+            if self.current_char == '&':
+                self.advance()
+                if self.current_char == '&':
+                    self.advance()
+                    return Token('AND', '&&')
+                self.error()
+
+            if self.current_char == '|':
+                self.advance()
+                if self.current_char == '|':
+                    self.advance()
+                    return Token('OR', '||')
+                self.error()
+
+            if self.current_char == ',':
+                self.advance()
+                return Token('COMMA', ',')
 
             if self.current_char == ';':
                 self.advance()
