@@ -13,7 +13,7 @@ class Parser:
             self.error()
 
     def parse(self):
-        return self.parse_statements()
+        return ProgramNode(self.parse_statements())
 
     def parse_statements(self):
         statements = []
@@ -58,7 +58,66 @@ class Parser:
         self.eat('EQUALS')
         expression = self.parse_expression()
         self.eat('SEMICOLON')
-        return BinaryOpNode(VariableNode(variable_name), '=', expression)
+        return AssignmentNode(variable_name, expression)
+
+    def parse_if(self):
+        self.eat('IF')
+        self.eat('LPAREN')
+        condition = self.parse_expression()
+        self.eat('RPAREN')
+        self.eat('LBRACE')
+        then_body = self.parse_statements()
+        self.eat('RBRACE')
+
+        else_body = []
+        if self.current_token.type == 'ELSE':
+            self.eat('ELSE')
+            self.eat('LBRACE')
+            else_body = self.parse_statements()
+            self.eat('RBRACE')
+
+        return IfNode(condition, then_body, else_body)
+
+    def parse_while(self):
+        self.eat('WHILE')
+        self.eat('LPAREN')
+        condition = self.parse_expression()
+        self.eat('RPAREN')
+        self.eat('LBRACE')
+        body = self.parse_statements()
+        self.eat('RBRACE')
+        return WhileNode(condition, body)
+
+    def parse_function_definition(self):
+        self.eat('FUNCTION')
+        function_name = self.current_token.value
+        self.eat('WORD')
+        self.eat('LPAREN')
+        parameters = []
+        if self.current_token.type != 'RPAREN':
+            parameters.append(self.current_token.value)
+            self.eat('WORD')
+            while self.current_token.type == 'COMMA':
+                self.eat('COMMA')
+                parameters.append(self.current_token.value)
+                self.eat('WORD')
+        self.eat('RPAREN')
+        self.eat('LBRACE')
+        body = self.parse_statements()
+        self.eat('RBRACE')
+        return FunctionDefinitionNode(function_name, parameters, body)
+
+    def parse_print(self):
+        self.eat('PRINT')
+        expression = self.parse_expression()
+        self.eat('SEMICOLON')
+        return PrintNode(expression)
+
+    def parse_return(self):
+        self.eat('RETURN')
+        expression = self.parse_expression()
+        self.eat('SEMICOLON')
+        return ReturnNode(expression)
 
     def parse_expression(self):
         return self.parse_logical_or()
@@ -180,142 +239,6 @@ class Parser:
     def parse_array_access(self, identifier):
         self.eat('WORD')
         self.eat('LBRACKET')
-       
-    def parse_array_access(self, identifier):
-        self.eat('WORD')
-        self.eat('LBRACKET')
         index = self.parse_expression()
         self.eat('RBRACKET')
-        return ArrayAccessNode(identifier, index)
-    def parse_for(self):
-        self.eat('FOR')
-        self.eat('LPAREN')
-        init_statement = self.parse_assignment()  # Optional initialization
-        self.eat('SEMICOLON')
-        condition = self.parse_expression()  # Loop condition
-        self.eat('SEMICOLON')
-        increment_statement = self.parse_assignment()  # Increment operation
-        self.eat('RPAREN')
-        self.eat('LCURLY')
-        body = self.parse_statements()
-        self.eat('RCURLY')
-        return ForNode(init_statement, condition, increment_statement, body)
-
-    def parse_try_catch(self):
-        self.eat('TRY')
-        self.eat('LCURLY')
-        try_statements = self.parse_statements()
-        self.eat('RCURLY')
-        self.eat('CATCH')
-        self.eat('LCURLY')
-        catch_statements = self.parse_statements()
-        self.eat('RCURLY')
-        return TryCatchNode(try_statements, catch_statements)
-
-    def parse_return(self):
-        self.eat('RETURN')
-        expr = self.parse_expression()
-        self.eat('SEMICOLON')
-        return ReturnNode(expr)
-class Interpreter:
-    def __init__(self, parser):
-        self.parser = parser
-        self.global_scope = {}
-        self.local_scope = None
-
-    def interpret(self):
-        tree = self.parser.parse()
-        return self.visit(tree)
-
-    def visit(self, node):
-        method_name = 'visit_' + type(node).__name__
-        visitor = getattr(self, method_name, self.generic_visit)
-        if callable(visitor):
-            return visitor(node)
-        else:
-            raise Exception(f'No visit_{type(node).__name__} method')
-
-    def generic_visit(self, node):
-        raise Exception(f'No visit_{type(node).__name__} method')
-
-    def visit_ProgramNode(self, node):
-        for statement in node.statements:
-            self.visit(statement)
-
-    def visit_AssignmentNode(self, node):
-        variable_name = node.variable_name
-        value = self.visit(node.expression)
-        if self.local_scope is not None:
-            self.local_scope[variable_name] = value
-        else:
-            self.global_scope[variable_name] = value
-
-    def visit_VariableNode(self, node):
-        if self.local_scope is not None and node.variable_name in self.local_scope:
-            return self.local_scope[node.variable_name]
-        elif node.variable_name in self.global_scope:
-            return self.global_scope[node.variable_name]
-        else:
-            raise Exception(f'Undefined variable {node.variable_name}')
-
-    def visit_BinaryOpNode(self, node):
-        left_value = self.visit(node.left)
-        right_value = self.visit(node.right)
-        if node.op == '+':
-            return left_value + right_value
-        elif node.op == '-':
-            return left_value - right_value
-        elif node.op == '*':
-            return left_value * right_value
-        elif node.op == '/':
-            return left_value / right_value
-
-    def visit_UnaryOpNode(self, node):
-        value = self.visit(node.operand)
-        if node.op == '-':
-            return -value
-
-    def visit_LiteralNode(self, node):
-        return node.value
-
-    def visit_FunctionCallNode(self, node):
-        function_name = node.function_name
-        if function_name in self.global_scope:
-            function = self.global_scope[function_name]
-            arguments = [self.visit(arg) for arg in node.arguments]
-            return self.call_function(function, arguments)
-        else:
-            raise Exception(f'Undefined function {function_name}')
-
-    def call_function(self, function, arguments):
-        self.local_scope = {}
-        for param, arg in zip(function.parameters, arguments):
-            self.local_scope[param] = arg
-        result = None
-        try:
-            for statement in function.body:
-                result = self.visit(statement)
-                if isinstance(result, ReturnNode):
-                    result = self.visit(result.expression)
-                    break
-        finally:
-            self.local_scope = None
-        return result
-
-    def visit_ForNode(self, node):
-        self.visit(node.init_statement)
-        while self.visit(node.condition):
-            for statement in node.body:
-                self.visit(statement)
-            self.visit(node.increment_statement)
-
-    def visit_TryCatchNode(self, node):
-        try:
-            for statement in node.try_statements:
-                self.visit(statement)
-        except Exception as e:
-            for statement in node.catch_statements:
-                self.visit(statement)
-
-    def visit_ReturnNode(self, node):
-        return node.expression
+       
