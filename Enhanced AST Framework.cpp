@@ -1,157 +1,259 @@
-// Enhanced AST framework with advanced code generation and optimization
-
 #include <iostream>
-#include <string>
-#include <memory>  // For std::unique_ptr
+#include <memory>
+#include <vector>
+#include <stdexcept>
 
-// Forward declaration of Visitor interfaces
-class Visitor;
-class AGIModel;
-class Codebank;
+// Custom exception for AST-related errors
+class ASTException : public std::exception {
+private:
+    std::string message;
+public:
+    ASTException(const std::string& msg) : message(msg) {}
+    const char* what() const noexcept override {
+        return message.c_str();
+    }
+};
+
+// Forward declaration of ASTNode
+class ASTNode;
 
 // Abstract base class for AST nodes
 class ASTNode {
 public:
     virtual ~ASTNode() = default;
-    virtual void generateCode() const = 0;
-    virtual void optimize() {}
-    virtual void accept(Visitor& visitor) const = 0;
-    virtual void acceptAGI(AGIModel& agi) const {} // For AGI interaction
-    virtual void acceptCodebank(Codebank& codebank) const {} // For Codebank interaction
+    virtual void generateCode(std::ostream& os, int depth = 0) const = 0;
 };
 
-// Expression Node with dynamic value
+// Expression node representing any value or variable
 class ExpressionNode : public ASTNode {
+private:
     std::string value;
-
 public:
-    ExpressionNode(std::string val) : value(std::move(val)) {}
-
-    void generateCode() const override {
-        std::cout << value;
-    }
-
-    void accept(Visitor& visitor) const override {
-        visitor.visit(*this);
-    }
-
-    void acceptAGI(AGIModel& agi) const override {
-        // Example: Use AGI model to optimize expression value
-        value = agi.generateOptimizedExpression(value);
+    ExpressionNode(const std::string& val) : value(val) {}
+    void generateCode(std::ostream& os, int depth = 0) const override {
+        os << value;
     }
 };
 
-// If Statement Node with condition, then branch, and optional else branch
+// AST node for if-else statement
 class IfNode : public ASTNode {
+private:
     std::unique_ptr<ASTNode> condition;
     std::unique_ptr<ASTNode> thenBranch;
     std::unique_ptr<ASTNode> elseBranch;
-
 public:
     IfNode(std::unique_ptr<ASTNode> cond, std::unique_ptr<ASTNode> thenBr, std::unique_ptr<ASTNode> elseBr = nullptr)
         : condition(std::move(cond)), thenBranch(std::move(thenBr)), elseBranch(std::move(elseBr)) {}
 
-    void generateCode() const override {
-        std::cout << "if (";
-        condition->generateCode();
-        std::cout << ") ";
-        thenBranch->generateCode();
-        if (elseBranch) {
-            std::cout << " else ";
-            elseBranch->generateCode();
+    void generateCode(std::ostream& os, int depth = 0) const override {
+        if (!condition || !thenBranch) {
+            throw ASTException("IfNode: Missing condition or then branch");
         }
-    }
-
-    void optimize() override {
-        // Perform optimization on the condition and branches if needed
-        condition->optimize();
-        thenBranch->optimize();
+        os << std::string(depth, '\t') << "if (";
+        condition->generateCode(os);
+        os << ") {\n";
+        thenBranch->generateCode(os, depth + 1);
+        os << "\n" << std::string(depth, '\t') << "}";
         if (elseBranch) {
-            elseBranch->optimize();
-        }
-    }
-
-    void accept(Visitor& visitor) const override {
-        visitor.visit(*this);
-    }
-
-    void acceptAGI(AGIModel& agi) const override {
-        // Example: Use AGI model to optimize conditional expressions
-        condition->acceptAGI(agi);
-        thenBranch->acceptAGI(agi);
-        if (elseBranch) {
-            elseBranch->acceptAGI(agi);
-        }
-    }
-
-    void acceptCodebank(Codebank& codebank) const override {
-        // Example: Fetch code snippets from Codebank for branches
-        thenBranch->acceptCodebank(codebank);
-        if (elseBranch) {
-            elseBranch->acceptCodebank(codebank);
+            os << " else {\n";
+            elseBranch->generateCode(os, depth + 1);
+            os << "\n" << std::string(depth, '\t') << "}";
         }
     }
 };
 
-// Visitor interface for visiting AST nodes
-class Visitor {
+// AST node for a sequence of statements
+class SequenceNode : public ASTNode {
+private:
+    std::vector<std::unique_ptr<ASTNode>> statements;
 public:
-    virtual ~Visitor() = default;
-    virtual void visit(const ExpressionNode& node) = 0;
-    virtual void visit(const IfNode& node) = 0;
-};
-
-// Interface for AGI model interactions
-class AGIModel {
-public:
-    virtual ~AGIModel() = default;
-    virtual std::string generateOptimizedExpression(const std::string& expression) const = 0;
-    virtual std::string inferType(const std::string& identifier) const = 0; // Example: Type inference
-};
-
-// Interface for Codebank interactions
-class Codebank {
-public:
-    virtual ~Codebank() = default;
-    virtual std::string fetchCodeSnippet(const std::string& snippetName) const = 0;
-};
-
-// Optimizing Visitor that integrates AGI and Codebank interactions
-class OptimizingVisitor : public Visitor {
-    AGIModel& agi;
-    Codebank& codebank;
-
-public:
-    OptimizingVisitor(AGIModel& agiModel, Codebank& codebankRepo)
-        : agi(agiModel), codebank(codebankRepo) {}
-
-    void visit(const ExpressionNode& node) override {
-        node.acceptAGI(agi);
-        node.generateCode();
+    void addStatement(std::unique_ptr<ASTNode> stmt) {
+        if (!stmt) {
+            throw ASTException("SequenceNode: Cannot add null statement");
+        }
+        statements.push_back(std::move(stmt));
     }
 
-    void visit(const IfNode& node) override {
-        node.acceptAGI(agi);
-        node.acceptCodebank(codebank);
-        node.optimize();
-        node.generateCode();
+    void generateCode(std::ostream& os, int depth = 0) const override {
+        for (const auto& stmt : statements) {
+            stmt->generateCode(os, depth);
+            os << ";\n";
+        }
     }
 };
 
-// Example usage
+// AST node for a function call
+class FunctionCallNode : public ASTNode {
+private:
+    std::string functionName;
+    std::vector<std::unique_ptr<ASTNode>> arguments;
+public:
+    FunctionCallNode(const std::string& name, std::vector<std::unique_ptr<ASTNode>> args)
+        : functionName(name), arguments(std::move(args)) {}
+
+    void generateCode(std::ostream& os, int depth = 0) const override {
+        os << functionName << "(";
+        bool first = true;
+        for (const auto& arg : arguments) {
+            if (!first) os << ", ";
+            arg->generateCode(os);
+            first = false;
+        }
+        os << ")";
+    }
+};
+
+// AST node for variable declaration
+class VariableDeclarationNode : public ASTNode {
+private:
+    std::string type;
+    std::string name;
+public:
+    VariableDeclarationNode(const std::string& t, const std::string& n)
+        : type(t), name(n) {}
+
+    void generateCode(std::ostream& os, int depth = 0) const override {
+        if (type.empty() || name.empty()) {
+            throw ASTException("VariableDeclarationNode: Missing type or name");
+        }
+        os << std::string(depth, '\t') << type << " " << name;
+    }
+};
+
+// AST node for assignment operation
+class AssignmentNode : public ASTNode {
+private:
+    std::unique_ptr<ASTNode> lhs;
+    std::unique_ptr<ASTNode> rhs;
+public:
+    AssignmentNode(std::unique_ptr<ASTNode> left, std::unique_ptr<ASTNode> right)
+        : lhs(std::move(left)), rhs(std::move(right)) {}
+
+    void generateCode(std::ostream& os, int depth = 0) const override {
+        if (!lhs || !rhs) {
+            throw ASTException("AssignmentNode: Missing left-hand side or right-hand side");
+        }
+        lhs->generateCode(os);
+        os << " = ";
+        rhs->generateCode(os);
+    }
+};
+
+// AST node for binary operation
+class BinaryOperationNode : public ASTNode {
+private:
+    std::unique_ptr<ASTNode> left;
+    std::string op;
+    std::unique_ptr<ASTNode> right;
+public:
+    BinaryOperationNode(std::unique_ptr<ASTNode> l, const std::string& o, std::unique_ptr<ASTNode> r)
+        : left(std::move(l)), op(o), right(std::move(r)) {}
+
+    void generateCode(std::ostream& os, int depth = 0) const override {
+        if (!left || !right) {
+            throw ASTException("BinaryOperationNode: Missing left or right operand");
+        }
+        os << "(";
+        left->generateCode(os);
+        os << " " << op << " ";
+        right->generateCode(os);
+        os << ")";
+    }
+};
+
+// AST node for unary operation
+class UnaryOperationNode : public ASTNode {
+private:
+    std::string op;
+    std::unique_ptr<ASTNode> operand;
+public:
+    UnaryOperationNode(const std::string& o, std::unique_ptr<ASTNode> opnd)
+        : op(o), operand(std::move(opnd)) {}
+
+    void generateCode(std::ostream& os, int depth = 0) const override {
+        if (!operand) {
+            throw ASTException("UnaryOperationNode: Missing operand");
+        }
+        os << op;
+        operand->generateCode(os);
+    }
+};
+
+// AST node for while loop
+class WhileLoopNode : public ASTNode {
+private:
+    std::unique_ptr<ASTNode> condition;
+    std::unique_ptr<ASTNode> body;
+public:
+    WhileLoopNode(std::unique_ptr<ASTNode> cond, std::unique_ptr<ASTNode> b)
+        : condition(std::move(cond)), body(std::move(b)) {}
+
+    void generateCode(std::ostream& os, int depth = 0) const override {
+        if (!condition || !body) {
+            throw ASTException("WhileLoopNode: Missing condition or body");
+        }
+        os << std::string(depth, '\t') << "while (";
+        condition->generateCode(os);
+        os << ") {\n";
+        body->generateCode(os, depth + 1);
+        os << "\n" << std::string(depth, '\t') << "}";
+    }
+};
+
+// AST node for for loop
+class ForLoopNode : public ASTNode {
+private:
+    std::unique_ptr<ASTNode> init;
+    std::unique_ptr<ASTNode> condition;
+    std::unique_ptr<ASTNode> iteration;
+    std::unique_ptr<ASTNode> body;
+public:
+    ForLoopNode(std::unique_ptr<ASTNode> i, std::unique_ptr<ASTNode> cond,
+                std::unique_ptr<ASTNode> iter, std::unique_ptr<ASTNode> b)
+        : init(std::move(i)), condition(std::move(cond)), iteration(std::move(iter)), body(std::move(b)) {}
+
+    void generateCode(std::ostream& os, int depth = 0) const override {
+        if (!condition || !body) {
+            throw ASTException("ForLoopNode: Missing condition or body");
+        }
+        os << std::string(depth, '\t') << "for (";
+        if (init) init->generateCode(os);
+        os << "; ";
+        if (condition) condition->generateCode(os);
+        os << "; ";
+        if (iteration) iteration->generateCode(os);
+        os << ") {\n";
+        body->generateCode(os, depth + 1);
+        os << "\n" << std::string(depth, '\t') << "}";
+    }
+};
+
 int main() {
-    std::unique_ptr<AGIModel> agiModel = std::make_unique<MyAGIModel>();
-    std::unique_ptr<Codebank> codebankRepo = std::make_unique<MyCodebank>();
+    try {
+        // Example AST generation
+        std::unique_ptr<ASTNode> ifElseNode = std::make_unique<IfNode>(
+            std::make_unique<ExpressionNode>("x > 10"),
+            std::make_unique<ExpressionNode>("doSomething()"),
+            std::make_unique<ExpressionNode>("doSomethingElse()")
+        );
 
-    std::unique_ptr<ASTNode> ifStatement = std::make_unique<IfNode>(
-        std::make_unique<ExpressionNode>("a + b"),
-        std::make_unique<ExpressionNode>("printHelloWorld"),
-        std::make_unique<ExpressionNode>("printGoodbyeWorld")
-    );
+        std::unique_ptr<ASTNode> sequenceNode = std::make_unique<SequenceNode>();
+        sequenceNode->addStatement(std::make_unique<VariableDeclarationNode>("int", "x"));
+        sequenceNode->addStatement(std::move(ifElseNode));
+        sequenceNode->addStatement(std::make_unique<FunctionCallNode>("print", std::vector<std::unique_ptr<ASTNode>>{
+            std::make_unique<ExpressionNode>("\"Hello, world!\"")
+        }));
 
-    // Use the optimizing visitor to perform optimizations and code generation
-    OptimizingVisitor optimizer(*agiModel, *codebankRepo);
-    ifStatement->accept(optimizer);
+        // Generate code for the entire AST
+        sequenceNode->generateCode(std::cout);
+
+    } catch (const ASTException& e) {
+        std::cerr << "AST Exception: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Exception: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "Unknown exception occurred" << std::endl;
+    }
 
     return 0;
 }
