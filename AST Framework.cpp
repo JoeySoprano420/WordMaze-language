@@ -257,3 +257,85 @@ int main() {
 
     return 0;
 }
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+
+// Custom exception for AST-related errors
+class ASTException : public std::exception {
+private:
+    std::string message;
+public:
+    ASTException(const std::string& msg) : message(msg) {}
+    const char* what() const noexcept override {
+        return message.c_str();
+    }
+};
+
+// Abstract base class for AST nodes
+class ASTNode {
+public:
+    virtual ~ASTNode() = default;
+    virtual void generateCode(std::ostream& os) const = 0;
+};
+
+// Expression node representing any value or variable
+class ExpressionNode : public ASTNode {
+private:
+    std::string value;
+public:
+    ExpressionNode(const std::string& val) : value(val) {}
+    void generateCode(std::ostream& os) const override {
+        os << value;
+    }
+};
+
+// AST node for if-else statement
+class IfNode : public ASTNode {
+private:
+    std::unique_ptr<ASTNode> condition;
+    std::unique_ptr<ASTNode> thenBranch;
+    std::unique_ptr<ASTNode> elseBranch;
+public:
+    IfNode(std::unique_ptr<ASTNode> cond, std::unique_ptr<ASTNode> thenBr, std::unique_ptr<ASTNode> elseBr = nullptr)
+        : condition(std::move(cond)), thenBranch(std::move(thenBr)), elseBranch(std::move(elseBr)) {}
+
+    void generateCode(std::ostream& os) const override {
+        if (!condition || !thenBranch) {
+            throw ASTException("IfNode: Missing condition or then branch");
+        }
+        os << "if (";
+        condition->generateCode(os);
+        os << ") {\n";
+        thenBranch->generateCode(os);
+        os << "\n}";
+        if (elseBranch) {
+            os << " else {\n";
+            elseBranch->generateCode(os);
+            os << "\n}";
+        }
+    }
+};
+
+int main() {
+    try {
+        // Example AST generation
+        std::unique_ptr<ASTNode> ifElseNode = std::make_unique<IfNode>(
+            std::make_unique<ExpressionNode>("x > 10"),
+            std::make_unique<ExpressionNode>("doSomething();"),
+            std::make_unique<ExpressionNode>("doSomethingElse();")
+        );
+
+        // Generate code for the entire AST
+        ifElseNode->generateCode(std::cout);
+
+    } catch (const ASTException& e) {
+        std::cerr << "AST Exception: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Exception: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "Unknown exception occurred" << std::endl;
+    }
+
+    return 0;
+}
