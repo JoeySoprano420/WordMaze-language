@@ -88,6 +88,36 @@ class Parser:
         self.eat('RBRACE')
         return WhileNode(condition, body)
 
+    def parse_for(self):
+        self.eat('FOR')
+        self.eat('LPAREN')
+        init_statement = self.parse_assignment()
+        condition = self.parse_expression()
+        self.eat('SEMICOLON')
+        increment_statement = self.parse_assignment()
+        self.eat('RPAREN')
+        self.eat('LBRACE')
+        body = self.parse_statements()
+        self.eat('RBRACE')
+        return ForNode(init_statement, condition, increment_statement, body)
+
+    def parse_print(self):
+        self.eat('PRINT')
+        expression = self.parse_expression()
+        self.eat('SEMICOLON')
+        return PrintNode(expression)
+
+    def parse_try_catch(self):
+        self.eat('TRY')
+        self.eat('LBRACE')
+        try_statements = self.parse_statements()
+        self.eat('RBRACE')
+        self.eat('CATCH')
+        self.eat('LBRACE')
+        catch_statements = self.parse_statements()
+        self.eat('RBRACE')
+        return TryCatchNode(try_statements, catch_statements)
+
     def parse_function_definition(self):
         self.eat('FUNCTION')
         function_name = self.current_token.value
@@ -106,12 +136,6 @@ class Parser:
         body = self.parse_statements()
         self.eat('RBRACE')
         return FunctionDefinitionNode(function_name, parameters, body)
-
-    def parse_print(self):
-        self.eat('PRINT')
-        expression = self.parse_expression()
-        self.eat('SEMICOLON')
-        return PrintNode(expression)
 
     def parse_return(self):
         self.eat('RETURN')
@@ -241,4 +265,7 @@ class Parser:
         self.eat('LBRACKET')
         index = self.parse_expression()
         self.eat('RBRACKET')
-       
+        return ArrayAccessNode(identifier, index)
+
+    def peek_token(self):
+        return self.lexer.peek_token()
